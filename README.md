@@ -8,10 +8,10 @@ Porovnat výdaje na zdravotnictví na obyvatele v ČR a SR pomocí párového t-
 
 ## Data (zdroje)
 - World Bank – **Current health expenditure per capita, PPP (current international $)** — kód `SH.XPD.CHEX.PP.CD`  
-  Stránka indikátoru: https://data.worldbank.org/indicator/SH.XPD.CHEX.PP.CD  
-  API CZ: https://api.worldbank.org/v2/country/CZ/indicator/SH.XPD.CHEX.PP.CD?format=json&per_page=20000  
-  API SK: https://api.worldbank.org/v2/country/SK/indicator/SH.XPD.CHEX.PP.CD?format=json&per_page=20000
-  Dokumentace API: https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures
+- Stránka indikátoru: https://data.worldbank.org/indicator/SH.XPD.CHEX.PP.CD  
+- API CZ: https://api.worldbank.org/v2/country/CZ/indicator/SH.XPD.CHEX.PP.CD?format=json&per_page=20000  
+-  API SK: https://api.worldbank.org/v2/country/SK/indicator/SH.XPD.CHEX.PP.CD?format=json&per_page=20000
+-  Dokumentace API: https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures
 
 ## Hypotézy
 - **H₀:** průměrný rozdíl (ČR − SR) = 0  
