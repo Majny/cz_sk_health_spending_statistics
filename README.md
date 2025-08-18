@@ -22,11 +22,11 @@ Porovnat výdaje na zdravotnictví na obyvatele v ČR a SR pomocí párového t-
 ```bash
 ./run.sh
 # výstupy:
-# plots/01_trend_means.png
+# plots/01_trend.png
 # plots/02_diff_bar.png
 # plots/03_diff_hist.png
 # plots/04_scatter_cz_vs_sk.png
 # plots/05_qqplot_diff.png
-# results/health_expenditure_CZ_SK_PPP_current.csv
+# results/table_czsk.csv
 # results/results_summary.md
 
