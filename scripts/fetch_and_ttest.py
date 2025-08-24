@@ -19,8 +19,11 @@ from scipy.stats import norm
 AUTHOR = "Jakub Dvořák"
 DATE = "13. 8."
 
-OUT_PLOTS = "plots"
-OUT_RESULTS = "results"
+# --- ukládat o úroveň výš (../plots, ../results) ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
+PROJ_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+OUT_PLOTS = os.path.join(PROJ_ROOT, "plots")
+OUT_RESULTS = os.path.join(PROJ_ROOT, "results")
 os.makedirs(OUT_PLOTS, exist_ok=True)
 os.makedirs(OUT_RESULTS, exist_ok=True)
 
@@ -45,20 +48,24 @@ sk = fetch_series("SK", INDICATOR).rename(columns={"value": "SK"})
 df = pd.merge(cz, sk, on="year", how="inner").sort_values("year").reset_index(drop=True)
 df["diff"] = df["CZ"] - df["SK"]
 
-# Ulož CSV
+# Výpočet ratio
+df["ratio"] = df["CZ"] / df["SK"]
+df["log_ratio"] = np.log(df["ratio"])  # pro test konstantního podílu
+
+# Ulož CSV -> ../results/
 csv_path = os.path.join(OUT_RESULTS, "table_czsk.csv")
 df.to_csv(csv_path, index=False)
 print(f"Uloženo: {csv_path}")
 
-# Grafy
+# Grafy -> ../plots/
 plt.rcParams.update({"figure.dpi": 120})
 
 # 1) Trendy + průměry
 plt.figure()
-plt.plot(df["year"], df["CZ"], label="ČR")
-plt.plot(df["year"], df["SK"], label="SR")
-plt.axhline(df["CZ"].mean(), linestyle="--", alpha=0.5, label="průměr ČR")
-plt.axhline(df["SK"].mean(), linestyle="--", alpha=0.5, label="průměr SR")
+plt.plot(df["year"], df["CZ"], label="ČR", color="C0")
+plt.plot(df["year"], df["SK"], label="SR", color="C1")
+plt.axhline(df["CZ"].mean(), linestyle="--", alpha=0.7, color="C0", label="průměr ČR")
+plt.axhline(df["SK"].mean(), linestyle="--", alpha=0.7, color="C1", label="průměr SR")
 plt.xlabel("Rok"); plt.ylabel("USD PPP na obyvatele")
 plt.title("Výdaje na zdravotnictví na obyvatele (PPP) – trend")
 plt.legend(); plt.tight_layout()
@@ -77,6 +84,17 @@ plt.legend(); plt.tight_layout()
 plt.savefig(os.path.join(OUT_PLOTS, "02_diff_bar.png"), dpi=150)
 plt.close()
 
+# 2R) Podíl (CZ/SK) po letech
+plt.figure()
+plt.bar(df["year"], df["ratio"], width=0.7)
+plt.axhline(1.0, color="black", linewidth=0.8, label="= 1 (stejné)")
+plt.axhline(df["ratio"].mean(), linestyle="--", alpha=0.5, label=f"průměr ratio = {df['ratio'].mean():.3f}")
+plt.xlabel("Rok"); plt.ylabel("Podíl CZ/SK")
+plt.title("Podíl výdajů (CZ/SK) po letech")
+plt.legend(); plt.tight_layout()
+plt.savefig(os.path.join(OUT_PLOTS, "02_ratio_bar.png"), dpi=150)
+plt.close()
+
 # 3) Histogram rozdílů + normála
 mu, sd = df["diff"].mean(), df["diff"].std(ddof=1)
 x = np.linspace(mu - 4*sd, mu + 4*sd, 200)
@@ -86,6 +104,17 @@ plt.plot(x, norm.pdf(x, mu, sd))
 plt.xlabel("Rozdíl (ČR − SR)"); plt.ylabel("Hustota")
 plt.title("Rozdělení rozdílů (CZ−SK)"); plt.tight_layout()
 plt.savefig(os.path.join(OUT_PLOTS, "03_diff_hist.png"), dpi=150)
+plt.close()
+
+# 3R) Histogram podílu
+plt.figure()
+plt.hist(df["ratio"], bins=10, alpha=0.7, edgecolor="white")
+plt.axvline(1.0, color="black", linewidth=0.8, label="= 1 (stejné)")
+plt.axvline(df["ratio"].mean(), linestyle="--", alpha=0.5, label=f"průměr = {df['ratio'].mean():.3f}")
+plt.xlabel("Podíl CZ/SK"); plt.ylabel("Počet let")
+plt.title("Rozdělení podílu (CZ/SK)")
+plt.legend(); plt.tight_layout()
+plt.savefig(os.path.join(OUT_PLOTS, "03_ratio_hist.png"), dpi=150)
 plt.close()
 
 # 4) Scatter CZ vs. SK
@@ -107,7 +136,7 @@ plt.tight_layout()
 plt.savefig(os.path.join(OUT_PLOTS, "05_qqplot_diff.png"), dpi=150)
 plt.close()
 
-print("Uloženy PNG v: plots/")
+print(f"Uloženy PNG do: {OUT_PLOTS}")
 
 # Párový t-test
 diff = df["diff"].to_numpy(float)
@@ -143,7 +172,6 @@ else:
         f"Rozdíl průměrných výdajů se nepotvrdil."
     )
 
-
 md_path = os.path.join(OUT_RESULTS, "results_summary.md")
 with open(md_path, "w", encoding="utf-8") as f:
     f.write("# Výsledky párového t-testu\n\n")
@@ -151,8 +179,36 @@ with open(md_path, "w", encoding="utf-8") as f:
     f.write(vysledky + "\n")
     f.write("## Závěr\n" + zaver + "\n")
 
-print("Uloženo:", md_path)
+print(f"Uloženo: {md_path}")
 
 print("\nShrnutí:")
 print(vysledky)
 print(zaver)
+
+# Korelace CZ vs. SK
+r, p_r = stats.pearsonr(df["CZ"], df["SK"])
+
+# Test konstantního podílu
+slope, intercept, r_val, p_slope, se_slope = stats.linregress(df["year"], df["log_ratio"])
+t_slope = (slope / se_slope) if se_slope > 0 else float("nan")
+
+# Geometrický průměr podílu a 95% CI
+mu_lr = df["log_ratio"].mean()
+sd_lr = df["log_ratio"].std(ddof=1)
+se_lr = sd_lr / math.sqrt(len(df))
+tcrit_ratio = stats.t.ppf(0.975, df=len(df)-1)
+gm = math.exp(mu_lr)
+ci_ratio_lo = math.exp(mu_lr - tcrit_ratio * se_lr)
+ci_ratio_hi = math.exp(mu_lr + tcrit_ratio * se_lr)
+
+with open(md_path, "a", encoding="utf-8") as f:
+    f.write("\n## Podíl CZ/SK\n\n")
+    f.write(f"- Korelace CZ vs. SK: r = {r:.3f}, p = {p_r:.3g}\n")
+    f.write(f"- Geometrický průměr podílu CZ/SK: {gm:.3f} (95% CI [{ci_ratio_lo:.3f}, {ci_ratio_hi:.3f}])\n")
+    f.write(f"- Test konstantního podílu: slope = {slope:.4e}, "
+            f"t ≈ {t_slope:.2f}, p = {p_slope:.3g}, R² = {r_val**2:.3f}\n")
+
+print("\nDoplňková analýza:")
+print(f"Korelace CZ vs. SK: r = {r:.3f}, p = {p_r:.3g}")
+print(f"Geometrický průměr podílu: {gm:.3f} (95% CI [{ci_ratio_lo:.3f}, {ci_ratio_hi:.3f}])")
+print(f"log(CZ/SK) ~ rok: slope = {slope:.4e}, t ≈ {t_slope:.2f}, p = {p_slope:.3g}, R² = {r_val**2:.3f}")
